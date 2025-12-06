@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env, TaskStatus } from '../types'
 import { all, one, run } from '../db'
+import { requireScope } from '../middleware'
 import { getBearer, verifyJWT } from '../utils'
 import type { Env } from '../types'
 
@@ -41,7 +42,7 @@ tasks.get('/:projectId', async c => {
   return c.json({ tasks: rows })
 })
 
-tasks.post('/', async c => {
+tasks.post('/', requireScope('tasks:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const body = await c.req.json()
@@ -80,7 +81,7 @@ tasks.post('/', async c => {
 
 const moveSchema = z.object({ id: z.string().uuid(), status: z.enum(['todo', 'in_progress', 'review', 'done']), rank: z.number().int() })
 
-tasks.post('/move', async c => {
+tasks.post('/move', requireScope('tasks:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const body = await c.req.json()
@@ -93,7 +94,7 @@ tasks.post('/move', async c => {
 })
 
 // Update task (e.g., description)
-tasks.patch('/:id', async c => {
+tasks.patch('/:id', requireScope('tasks:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const id = c.req.param('id')

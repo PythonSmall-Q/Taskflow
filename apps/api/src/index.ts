@@ -17,6 +17,7 @@ import { integrations } from './routes/integrations'
 import { processor } from './routes/processor'
 import { comments } from './routes/comments'
 import { apiKeys } from './routes/api-keys'
+import { admin } from './routes/admin'
 import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
@@ -52,5 +53,6 @@ app.route('/integrations', integrations)
 app.route('/internal', processor)
 app.route('/comments', comments)
 app.route('/api-keys', apiKeys)
+app.route('/admin', admin)
 
 export default app

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getBearer, verifyJWT } from '../utils'
+import { requireScope } from '../middleware'
 
 export const files = new Hono<{ Bindings: Env }>()
 
@@ -10,7 +11,7 @@ async function auth(c: any) {
   try { return await verifyJWT(token, c.env.JWT_SECRET) } catch { return null }
 }
 
-files.post('/', async c => {
+files.post('/', requireScope('files:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const form = await c.req.parseBody()

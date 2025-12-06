@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Env, JWTPayload, Role } from '../types'
 import { all, one, run } from '../db'
 import { getBearer, verifyJWT } from '../utils'
+import { requireScope } from '../middleware'
 
 export const teams = new Hono<{ Bindings: Env }>()
 
@@ -30,8 +31,7 @@ teams.get('/', async c => {
   )
   return c.json({ teams: rows })
 })
-
-teams.post('/', async c => {
+teams.post('/', requireScope('teams:write'), async c => {
   const user = await authUser(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const body = await c.req.json()

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types'
 import { all, one, run } from '../db'
+import { requireScope } from '../middleware'
 import { getBearer, verifyJWT } from '../utils'
 
 export const projects = new Hono<{ Bindings: Env }>()
@@ -28,7 +29,7 @@ projects.get('/', async c => {
   return c.json({ projects: rows })
 })
 
-projects.post('/', async c => {
+projects.post('/', requireScope('projects:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const body = await c.req.json()

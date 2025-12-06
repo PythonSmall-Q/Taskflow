@@ -21,8 +21,8 @@ npm install
 2) Create local D1 database and run migrations
 
 ```bash
-wrangler d1 create taskflow-db --config wrangler.toml --local
-wrangler d1 migrations apply taskflow-db --local --config wrangler.toml --file apps/api/migrations/0001_init.sql
+wrangler d1 create taskflow-db --config wrangler.toml
+wrangler d1 migrations apply taskflow-db --config wrangler.toml
 ```
 
 3) Build web and run the Worker (serves SPA from `apps/web/dist`)
@@ -62,6 +62,12 @@ wrangler secret put JWT_SECRET
 - GET /oauth/google|github/start, GET /oauth/google|github/callback (demo)
 - POST /ai/auto-tag, POST /ai/assign (stubs)
 
+### Security & Admin
+
+- API keys: GET/POST/POST revoke/POST config (limits + scopes)
+- Per-key rate limiting and scopes: use `x-api-key` with configured limits and route scopes
+- Admin endpoints: list members, set roles, team settings, project archive/unarchive
+
 See `apps/api/src/routes/*`.
 
 ## Notes
@@ -69,6 +75,24 @@ See `apps/api/src/routes/*`.
 - OAuth (Google/GitHub), SSO, advanced reports, AI assistants are scaffold targets (not fully implemented in MVP).
 - Cloudflare Access middleware stub is present; wire it to verify Access JWT via JWKs for production.
 - PWA enabled; offline shell will serve after first load.
+
+## UI Usage
+
+- Sign in (or register), create a project, add tasks; drag between lanes.
+- Click “评论” on a task to open the comments panel; supports Markdown + file attachments.
+- Click “编辑描述” to use the Markdown description editor with live preview.
+- Sidebar “管理 API Keys”: list keys, create, revoke, edit per-minute limit and scopes.
+- “管理员界面”: manage team members (roles) and team settings JSON; archive/unarchive projects.
+
+## Scopes Reference
+
+- `projects:write`: create projects
+- `tasks:write`: create/move/update tasks
+- `files:write`: upload files
+- `teams:write`: create teams
+- `comments:write`: post comments
+
+Pass `x-api-key: <key>` to use API keys with scopes; rate limit per minute can be configured per key.
 
 ## Deploy
 

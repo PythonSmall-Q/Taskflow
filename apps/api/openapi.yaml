@@ -6,6 +6,107 @@ info:
 servers:
   - url: /
 paths:
+    /admin/teams/{teamId}/members:
+      get:
+        summary: List team members with roles
+        parameters:
+          - in: path
+            name: teamId
+            required: true
+            schema: { type: string }
+        responses:
+          '200':
+            description: Members
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    members:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TeamMember'
+          '403': { description: Forbidden }
+    /admin/teams/{teamId}/members/{userId}/role:
+      post:
+        summary: Set member role
+        parameters:
+          - in: path
+            name: teamId
+            required: true
+            schema: { type: string }
+          - in: path
+            name: userId
+            required: true
+            schema: { type: string }
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    enum: [staff, lead, manager, supervisor]
+        responses:
+          '200': { description: OK }
+          '403': { description: Forbidden }
+    /admin/teams/{teamId}/settings:
+      post:
+        summary: Update team settings JSON
+        parameters:
+          - in: path
+            name: teamId
+            required: true
+            schema: { type: string }
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamSettings'
+        responses:
+          '200': { description: OK }
+          '403': { description: Forbidden }
+    /admin/projects/{projectId}/archive:
+      post:
+        summary: Archive project
+        parameters:
+          - in: path
+            name: projectId
+            required: true
+            schema: { type: string }
+        responses:
+          '200':
+            description: Archived
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    archived:
+                      type: boolean
+          '403': { description: Forbidden }
+    /admin/projects/{projectId}/unarchive:
+      post:
+        summary: Unarchive project
+        parameters:
+          - in: path
+            name: projectId
+            required: true
+            schema: { type: string }
+        responses:
+          '200':
+            description: Unarchived
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    archived:
+                      type: boolean
+          '403': { description: Forbidden }
   /:
     get:
       summary: Health
@@ -368,6 +469,10 @@ paths:
               type: object
               properties:
                 label: { type: string }
+                limit_per_minute: { type: integer }
+                scopes:
+                  type: array
+                  items: { type: string }
       responses:
         '200':
           description: New key
@@ -388,6 +493,28 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: Revoked }
+  /api-keys/config/{id}:
+    post:
+      summary: Update API key configuration (limit, scopes)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit_per_minute: { type: integer }
+                scopes:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200': { description: Updated }
 components:
   securitySchemes:
     bearerAuth:
@@ -395,6 +522,17 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    TeamMember:
+      type: object
+      properties:
+        user_id: { type: string }
+        role:
+          type: string
+          enum: [staff, lead, manager, supervisor]
+    TeamSettings:
+      type: object
+      description: Arbitrary team-level configuration
+      additionalProperties: true
     ApiKey:
       type: object
       properties:
@@ -403,12 +541,18 @@ components:
         label: { type: string }
         created_at: { type: integer }
         revoked: { type: integer }
+        limit_per_minute: { type: integer }
+        scopes:
+          type: array
+          items: { type: string }
       example:
         id: key_123
         key: abcd1234efgh5678
         label: CI pipeline
         created_at: 1733420000000
         revoked: 0
+        limit_per_minute: 120
+        scopes: ["tasks:read","projects:write"]
   schemas:
     User:
       type: object

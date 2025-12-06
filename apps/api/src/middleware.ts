@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Env, JWTPayload } from './types'
+import { one } from './db'
 import { getBearer, verifyJWT } from './utils'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
 
@@ -14,9 +15,9 @@ export const authMiddleware = new Hono<{ Bindings: Env }>()
   .use('*', async (c, next) => {
       const apiKey = c.req.header('x-api-key')
       if (apiKey) {
-        const row = await one<{ user_id: string }>(c.env, 'SELECT user_id FROM api_keys WHERE key = ? AND revoked = 0', apiKey)
+        const row = await one<{ user_id: string; scopes: string }>(c.env, 'SELECT user_id, scopes FROM api_keys WHERE key = ? AND revoked = 0', apiKey)
         if (!row) return c.json({ error: 'Invalid API key' }, 401)
-        c.set('user', { id: row.user_id })
+        c.set('user', { id: row.user_id, scopes: row.scopes ? JSON.parse(row.scopes) : [] })
         return await next()
       }
       const token = getBearer(c.req.raw)
@@ -57,11 +58,30 @@ export const accessMiddleware = new Hono<{ Bindings: Env }>()
 // Simple KV-based rate limit: X requests per window per token/IP
 export function rateLimit(limit = 100, windowMs = 60_000) {
   return async (c: any, next: any) => {
-    const keyBase = c.req.header('authorization') || c.req.header('cf-connecting-ip') || 'anon'
+    const apiKey = c.req.header('x-api-key')
+    const user = c.get('user') as { id?: string } | undefined
+    let effectiveLimit = limit
+    if (apiKey) {
+      const row = await one<{ limit_per_minute: number | null }>(c.env, 'SELECT limit_per_minute FROM api_keys WHERE key = ? AND revoked = 0', apiKey)
+      if (row && row.limit_per_minute && row.limit_per_minute > 0) effectiveLimit = row.limit_per_minute
+    }
+    const keyBase = apiKey || user?.id || c.req.header('authorization') || c.req.header('cf-connecting-ip') || 'anon'
     const bucket = `rl:${Math.floor(Date.now() / windowMs)}:${keyBase}`
     const current = parseInt((await c.env.CACHE.get(bucket)) || '0', 10)
-    if (current >= limit) return c.json({ error: 'Rate limit exceeded' }, 429)
+    if (current >= effectiveLimit) return c.json({ error: 'Rate limit exceeded' }, 429)
     await c.env.CACHE.put(bucket, String(current + 1), { expirationTtl: Math.ceil(windowMs / 1000) })
+    return next()
+  }
+}
+
+// Scope guard for API key usage
+export function requireScope(scope: string) {
+  return async (c: any, next: any) => {
+    const apiKey = c.req.header('x-api-key')
+    if (!apiKey) return next()
+    const user = c.get('user') as { scopes?: string[] }
+    const scopes = user?.scopes || []
+    if (!scopes.includes(scope)) return c.json({ error: 'Insufficient scope' }, 403)
     return next()
   }
 }
