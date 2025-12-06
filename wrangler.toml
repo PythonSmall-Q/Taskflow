@@ -1,0 +1,55 @@
+name = "taskflow-api"
+main = "apps/api/src/index.ts"
+compatibility_date = "2024-11-29"
+assets = { directory = "apps/web/dist" }
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[[d1_databases]]
+binding = "DB"
+database_name = "taskflow-db"
+database_id = "local-taskflow-db"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "taskflow-files"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "local-cache"
+
+[ai]
+binding = "AI"
+
+env = { JWT_SECRET = "dev-secret-change" }
+
+[durable_objects]
+bindings = [
+  { name = "ROOM_DO", class_name = "RoomDurableObject" }
+]
+
+[[migrations]]
+new_classes = ["RoomDurableObject"]
+
+[env.production]
+route = "YOUR_DOMAIN/*"
+workers_dev = false
+vars = { JWT_SECRET = "set-via-secret" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "taskflow-db"
+database_id = "REPLACE_WITH_REAL_ID"
+
+[[env.production.r2_buckets]]
+binding = "FILES"
+bucket_name = "taskflow-files"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_REAL_KV_ID"
+
+[env.production.ai]
+binding = "AI"

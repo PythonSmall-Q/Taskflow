@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: Taskflow Zero API
+  version: 0.1.0
+  description: Basic endpoints for auth, projects, tasks, files, realtime
+servers:
+  - url: /
+paths:
+  /:
+    get:
+      summary: Health
+      responses:
+        '200': { description: OK }
+  /auth/register:
+    post:
+      summary: Register with email/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                name: { type: string }
+              required: [email, password, name]
+      responses:
+        '200': { description: JWT and user }
+  /auth/login:
+    post:
+      summary: Login with email/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+              required: [email, password]
+      responses:
+        '200': { description: JWT and user }
+  /projects:
+    get:
+      summary: List projects for current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: List of projects }
+    post:
+      summary: Create project in first team
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                color: { type: string }
+              required: [name]
+      responses:
+        '201': { description: Project created }
+  /tasks/{projectId}:
+    get:
+      summary: List tasks in project
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: List of tasks }
+  /tasks:
+    post:
+      summary: Create task
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId: { type: string }
+                title: { type: string }
+              required: [projectId, title]
+      responses:
+        '201': { description: Task created }
+  /tasks/move:
+    post:
+      summary: Move task to status
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                status: { type: string, enum: [todo, in_progress, review, done] }
+                rank: { type: integer }
+              required: [id, status, rank]
+      responses:
+        '200': { description: OK }
+  /files:
+    post:
+      summary: Upload file
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200': { description: File key and URL }
+  /files/{key}:
+    get:
+      summary: Get file by key
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: File stream }
+  /teams:
+    get:
+      summary: List teams for current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: List of teams }
+    post:
+      summary: Create team
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+              required: [name]
+      responses:
+        '200': { description: Team created }
+  /teams/{id}/invite:
+    post:
+      summary: Create invite token
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Invite created }
+  /teams/join/{token}:
+    post:
+      summary: Join via invite
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Joined }
+  /realtime/room/{id}:
+    get:
+      summary: Connect to room (WebSocket)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '101': { description: WebSocket upgrade }
+  /oauth/google/start:
+    get:
+      summary: Redirect to Google OAuth start
+      responses:
+        '302': { description: Redirect }
+  /oauth/google/callback:
+    get:
+      summary: Google OAuth callback
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: JWT }
+  /oauth/github/start:
+    get:
+      summary: Redirect to GitHub OAuth start
+      responses:
+        '302': { description: Redirect }
+  /oauth/github/callback:
+    get:
+      summary: GitHub OAuth callback
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: JWT }
+  /ai/auto-tag:
+    post:
+      summary: Suggest tags via AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string }
+      responses:
+        '200': { description: Tags }
+  /ai/assign:
+    post:
+      summary: Suggest assignee via AI
+      responses:
+        '200': { description: Suggested assignee }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
