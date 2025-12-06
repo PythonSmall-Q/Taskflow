@@ -10,12 +10,16 @@ export function Admin({ headers, theme = 'light', lang = 'zh' }: { headers: Reco
   const [projectId, setProjectId] = useState('')
   const [archivedMsg, setArchivedMsg] = useState('')
   const [message, setMessage] = useState('')
+  const [teamProjects, setTeamProjects] = useState<Array<{ id: string; name: string; archived: number }>>([])
 
   const loadMembers = async () => {
     if (!teamId) return
     const res = await fetch(apiBase + `/admin/teams/${teamId}/members`, { headers })
     const data = await res.json()
     setMembers(data.members ?? [])
+    const pr = await fetch(apiBase + `/admin/teams/${teamId}/projects`, { headers })
+    const pd = await pr.json()
+    setTeamProjects(pd.projects ?? [])
   }
   const setRole = async (userId: string, role: string) => {
     await fetch(apiBase + `/admin/teams/${teamId}/members/${userId}/role`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) })
@@ -65,6 +69,7 @@ export function Admin({ headers, theme = 'light', lang = 'zh' }: { headers: Reco
                 <select value={m.role} onChange={e => setRole(m.user_id, e.target.value)}>
                   {['staff','lead','manager','supervisor'].map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+                <button onClick={async () => { await fetch(apiBase + `/admin/teams/${teamId}/members/${m.user_id}`, { method: 'DELETE', headers }); await loadMembers() }}>移除</button>
               </li>
             ))}
             </ul>
@@ -89,6 +94,26 @@ export function Admin({ headers, theme = 'light', lang = 'zh' }: { headers: Reco
               <button onClick={() => archiveProject(true)}>归档项目</button>
               <button onClick={() => archiveProject(false)}>取消归档</button>
               {archivedMsg && <span style={{ marginLeft: 8, color: 'blue' }}>{archivedMsg}</span>}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <h4 style={{ marginTop: 0 }}>团队项目</h4>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {teamProjects.map(p => (
+                  <li key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, borderBottom: `1px solid ${colors.border}` }}>
+                    <div>
+                      <strong>{p.name}</strong>
+                      <div style={labelStyle}>{p.id}</div>
+                    </div>
+                    <div>
+                      {p.archived ? (
+                        <button onClick={async () => { setProjectId(p.id); await archiveProject(false); await loadMembers() }}>取消归档</button>
+                      ) : (
+                        <button onClick={async () => { setProjectId(p.id); await archiveProject(true); await loadMembers() }}>归档</button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

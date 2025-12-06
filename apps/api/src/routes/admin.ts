@@ -24,6 +24,27 @@ admin.get('/teams/:teamId/members', async c => {
   return c.json({ members: rows })
 })
 
+// Remove member (manager+)
+admin.delete('/teams/:teamId/members/:userId', async c => {
+  const user = c.get('user') as { id: string }
+  const teamId = c.req.param('teamId')
+  const targetUserId = c.req.param('userId')
+  const can = await assertRole(user, 'manager')(c.env, teamId)
+  if (!can) return c.json({ error: 'Forbidden' }, 403)
+  await run(c.env, 'DELETE FROM team_members WHERE team_id = ? AND user_id = ?', teamId, targetUserId)
+  return c.json({ ok: true })
+})
+
+// List team projects (lead+)
+admin.get('/teams/:teamId/projects', async c => {
+  const user = c.get('user') as { id: string }
+  const teamId = c.req.param('teamId')
+  const can = await assertRole(user, 'lead')(c.env, teamId)
+  if (!can) return c.json({ error: 'Forbidden' }, 403)
+  const rows = await all(c.env, 'SELECT id, name, archived, created_at FROM projects WHERE team_id = ? ORDER BY created_at DESC', teamId)
+  return c.json({ projects: rows })
+})
+
 // Set member role (manager+)
 admin.post('/teams/:teamId/members/:userId/role', async c => {
   const user = c.get('user') as { id: string }
