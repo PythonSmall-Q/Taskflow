@@ -15,6 +15,8 @@ import { automation } from './routes/automation'
 import { reports } from './routes/reports'
 import { integrations } from './routes/integrations'
 import { processor } from './routes/processor'
+import { comments } from './routes/comments'
+import { apiKeys } from './routes/api-keys'
 import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
@@ -48,5 +50,7 @@ app.route('/automation', automation)
 app.route('/reports', reports)
 app.route('/integrations', integrations)
 app.route('/internal', processor)
+app.route('/comments', comments)
+app.route('/api-keys', apiKeys)
 
 export default app

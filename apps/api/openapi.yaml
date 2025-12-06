@@ -66,6 +66,52 @@ paths:
       responses:
         '200': { description: OK }
   /internal/process-due:
+  /realtime/schedule/{id}:
+    post:
+      summary: Schedule DO alarm for due processing
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Scheduled }
+  /integrations/calendar:
+    post:
+      summary: Create Google Calendar event (requires user access token)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken: { type: string }
+                summary: { type: string }
+                start: { type: string, format: date-time }
+                end: { type: string, format: date-time }
+                timezone: { type: string }
+              required: [accessToken, summary, start, end]
+      responses:
+        '200': { description: Event created }
+  /comments:
+    post:
+      summary: Create comment with optional attachments and @mentions
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateCommentForm'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCommentResponse'
+  /internal/process-due:
     post:
       summary: Process due tasks to fire due_soon/overdue
       responses:
@@ -107,6 +153,23 @@ paths:
               required: [name]
       responses:
         '201': { description: Project created }
+  /comments/task/{taskId}:
+    get:
+      summary: List comments for a task
+      tags: [Comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCommentsResponse'
   /tasks/{projectId}:
     get:
       summary: List tasks in project
@@ -278,9 +341,141 @@ paths:
       summary: Suggest assignee via AI
       responses:
         '200': { description: Suggested assignee }
+  /api-keys:
+    get:
+      summary: List API keys for current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+    post:
+      summary: Create API key
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string }
+      responses:
+        '200':
+          description: New key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key: { type: string }
+  /api-keys/revoke/{id}:
+    post:
+      summary: Revoke API key
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Revoked }
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string }
+        key: { type: string }
+        label: { type: string }
+        created_at: { type: integer }
+        revoked: { type: integer }
+      example:
+        id: key_123
+        key: abcd1234efgh5678
+        label: CI pipeline
+        created_at: 1733420000000
+        revoked: 0
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string }
+      example:
+        id: usr_123
+        email: alice@example.com
+        name: Alice
+    Comment:
+      type: object
+      properties:
+        id: { type: string }
+        task_id: { type: string }
+        user_id: { type: string }
+        body: { type: string }
+        created_at: { type: integer }
+      example:
+        id: cmt_001
+        task_id: tsk_123
+        user_id: usr_123
+        body: "Looks good!\n\n- [ ] Follow up"
+        created_at: 1733420000000
+    CreateCommentForm:
+      type: object
+      required: [taskId, body]
+      properties:
+        taskId: { type: string }
+        body: { type: string }
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+      example:
+        taskId: tsk_123
+        body: "@bob@example.com please review the checklist."
+    CreateCommentResponse:
+      type: object
+      properties:
+        comment:
+          $ref: '#/components/schemas/Comment'
+      example:
+        comment:
+          id: cmt_002
+          task_id: tsk_123
+          user_id: usr_456
+          body: "Added attachment and notes"
+          created_at: 1733421000000
+    ListCommentsResponse:
+      type: object
+      properties:
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+      example:
+        comments:
+          - id: cmt_001
+            task_id: tsk_123
+            user_id: usr_123
+            body: "Initial thoughts"
+            created_at: 1733420000000
+          - id: cmt_002
+            task_id: tsk_123
+            user_id: usr_456
+            body: "Added attachment and notes"
+            created_at: 1733421000000

@@ -12,14 +12,21 @@ export const withCors = cors({
 
 export const authMiddleware = new Hono<{ Bindings: Env }>()
   .use('*', async (c, next) => {
-    const token = getBearer(c.req.raw)
-    if (!token) return c.json({ error: 'Unauthorized' }, 401)
-    try {
-      const payload = await verifyJWT(token, c.env.JWT_SECRET)
-      c.set('user', payload as JWTPayload)
-      await next()
-    } catch {
-      return c.json({ error: 'Invalid token' }, 401)
+      const apiKey = c.req.header('x-api-key')
+      if (apiKey) {
+        const row = await one<{ user_id: string }>(c.env, 'SELECT user_id FROM api_keys WHERE key = ? AND revoked = 0', apiKey)
+        if (!row) return c.json({ error: 'Invalid API key' }, 401)
+        c.set('user', { id: row.user_id })
+        return await next()
+      }
+      const token = getBearer(c.req.raw)
+      if (!token) return c.json({ error: 'Unauthorized' }, 401)
+      try {
+        const payload = await verifyJWT(token, c.env.JWT_SECRET)
+        c.set('user', payload as JWTPayload)
+        await next()
+      } catch {
+        return c.json({ error: 'Invalid token' }, 401)
     }
   })
 

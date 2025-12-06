@@ -92,6 +92,19 @@ tasks.post('/move', async c => {
   return c.json({ ok: true })
 })
 
+// Update task (e.g., description)
+tasks.patch('/:id', async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({})) as { description?: string }
+  if (typeof body.description === 'string') {
+    await run(c.env, 'UPDATE tasks SET description = ? WHERE id = ?', body.description, id)
+    await fireAutomationsByTaskId(c.env, id, 'task.updated', { description: true })
+  }
+  return c.json({ ok: true })
+})
+
 async function fireAutomations(env: Env, projectId: string, trigger: string, payload: any) {
   const proj = await one<{ team_id: string }>(env, 'SELECT team_id FROM projects WHERE id = ? LIMIT 1', projectId)
   if (!proj) return

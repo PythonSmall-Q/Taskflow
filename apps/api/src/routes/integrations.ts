@@ -30,6 +30,23 @@ integrations.post('/sync', async c => {
 // Google Calendar stub
 integrations.post('/calendar', async c => {
   const body = await c.req.json()
-  // TODO: post events for due tasks
-  return c.json({ ok: true })
+  const token = body.accessToken as string | undefined
+  const summary = body.summary as string
+  const start = body.start as string // ISO datetime
+  const end = body.end as string // ISO datetime
+  const timezone = body.timezone as string || 'UTC'
+  if (!summary || !start || !end) return c.json({ error: 'Missing summary/start/end' }, 400)
+  if (!token) return c.json({ error: 'Missing accessToken' }, 400)
+  // Create Google Calendar event
+  const resp = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      summary,
+      start: { dateTime: start, timeZone: timezone },
+      end: { dateTime: end, timeZone: timezone }
+    })
+  })
+  const data = await resp.json()
+  return c.json({ ok: resp.ok, event: data })
 })

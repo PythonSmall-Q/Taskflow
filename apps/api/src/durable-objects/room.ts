@@ -20,6 +20,17 @@ export class RoomDurableObject implements DurableObject {
       await this.handleSession(server)
       return new Response(null, { status: 101, webSocket: client })
     }
+    if (url.pathname === '/broadcast' && request.method === 'POST') {
+      try {
+        const data = await request.json()
+        for (const client of this.sessions.keys()) {
+          try { client.send(JSON.stringify(data)) } catch {}
+        }
+        return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } })
+      } catch {
+        return new Response('Bad request', { status: 400 })
+      }
+    }
     if (url.pathname === '/schedule') {
       // Set an alarm to run due date checks; default in 5 minutes
       const when = Date.now() + 5 * 60 * 1000
