@@ -27,6 +27,49 @@ paths:
               required: [email, password, name]
       responses:
         '200': { description: JWT and user }
+  /automation:
+    get:
+      summary: List automation rules
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: List of rules }
+    post:
+      summary: Create automation rule
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                trigger: { type: string, enum: [task.created, task.status_changed, task.due_soon, task.overdue] }
+                action: { type: string, enum: [webhook.call, notify.user] }
+                config: { type: object }
+              required: [name, trigger, action]
+      responses:
+        '201': { description: Rule created }
+  /integrations/notify:
+    post:
+      summary: Send a message to a webhook (Slack/Discord)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                payload: { type: object }
+              required: [url]
+      responses:
+        '200': { description: OK }
+  /internal/process-due:
+    post:
+      summary: Process due tasks to fire due_soon/overdue
+      responses:
+        '200': { description: OK }
   /auth/login:
     post:
       summary: Login with email/password

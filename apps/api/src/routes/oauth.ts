@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
-import { run, one } from '../db'
+import { run, one, upsertUserByEmail } from '../db'
 import { signJWT } from '../utils'
 
 // Minimal direct OAuth scaffold (authorization code) for Google/GitHub
@@ -45,14 +45,35 @@ oauth.get('/google/callback', async c => {
   const cache = await c.env.CACHE.get(`oauth:google:${state}`)
   if (!cache) return c.json({ error: 'Invalid state' }, 400)
   const { verifier } = JSON.parse(cache)
-  // TODO: Exchange code+verifier for tokens at Google's endpoint
-  const email = `user-${code}@google.local` // placeholder
-  let user = await one<{ id: string; name: string }>(c.env, 'SELECT id, name FROM users WHERE email = ? LIMIT 1', email)
-  if (!user) {
-    const id = crypto.randomUUID()
-    await run(c.env, 'INSERT INTO users (id, email, name, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)', id, email, 'Google User', '-', '-', Date.now())
-    user = { id, name: 'Google User' }
+  // Exchange code+verifier for tokens at Google's endpoint
+  const clientId = await c.env.CACHE.get('GOOGLE_CLIENT_ID')
+  const clientSecret = await c.env.CACHE.get('GOOGLE_CLIENT_SECRET')
+  const redirect = redirectUri('google')
+  let email = ''
+  if (clientId && clientSecret) {
+    const resp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirect,
+        code_verifier: verifier,
+      }).toString()
+    })
+    const data = await resp.json()
+    const idToken = data.id_token
+    if (idToken) {
+      // Decode without verification for email claim; production should verify JWT signature
+      const parts = idToken.split('.')
+      const payload = JSON.parse(atob(parts[1]))
+      email = payload.email
+    }
   }
+  if (!email) email = `user-${code}@google.local`
+  const user = await upsertUserByEmail(c.env, email, 'Google User')
   const token = await signJWT({ sub: user.id, email }, c.env.JWT_SECRET)
   return c.json({ token })
 })
@@ -74,14 +95,26 @@ oauth.get('/github/callback', async c => {
   if (!code || !state) return c.json({ error: 'Missing code/state' }, 400)
   const ok = await c.env.CACHE.get(`oauth:github:${state}`)
   if (!ok) return c.json({ error: 'Invalid state' }, 400)
-  // TODO: Exchange code for tokens at GitHub's endpoint
-  const email = `user-${code}@github.local`
-  let user = await one<{ id: string; name: string }>(c.env, 'SELECT id, email, name FROM users WHERE email = ? LIMIT 1', email)
-  if (!user) {
-    const id = crypto.randomUUID()
-    await run(c.env, 'INSERT INTO users (id, email, name, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)', id, email, 'GitHub User', '-', '-', Date.now())
-    user = { id, name: 'GitHub User' }
+  // Exchange code for tokens at GitHub's endpoint
+  const clientId = await c.env.CACHE.get('GITHUB_CLIENT_ID')
+  const clientSecret = await c.env.CACHE.get('GITHUB_CLIENT_SECRET')
+  let email = ''
+  if (clientId && clientSecret) {
+    const resp = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code })
+    })
+    const data = await resp.json()
+    if (data.access_token) {
+      const eresp = await fetch('https://api.github.com/user/emails', { headers: { authorization: `Bearer ${data.access_token}`, 'user-agent': 'taskflow-zero' } })
+      const emails = await eresp.json()
+      const primary = Array.isArray(emails) ? emails.find((e: any) => e.primary && e.verified)?.email : ''
+      email = primary || ''
+    }
   }
+  if (!email) email = `user-${code}@github.local`
+  const user = await upsertUserByEmail(c.env, email, 'GitHub User')
   const token = await signJWT({ sub: user.id, email }, c.env.JWT_SECRET)
   return c.json({ token })
 })

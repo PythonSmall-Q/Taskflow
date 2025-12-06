@@ -13,6 +13,13 @@ integrations.post('/notify', async c => {
   return c.json({ ok: res.ok })
 })
 
+// Helper to fan-out notifications to Slack/Discord when notify.user triggers
+export async function broadcastToHooks(env: Env, teamId: string, text: string) {
+  const hooks = await env.DB.prepare('SELECT url FROM webhooks WHERE team_id = ? AND active = 1').bind(teamId).all<{ url: string }>()
+  const urls = (hooks.results || []).map(h => h.url).filter(u => /slack|discord|hooks/.test(u))
+  await Promise.all(urls.map(u => fetch(u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) })))
+}
+
 // GitHub/GitLab sync stub
 integrations.post('/sync', async c => {
   const body = await c.req.json()

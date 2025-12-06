@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Env, TaskStatus } from '../types'
 import { all, one, run } from '../db'
 import { getBearer, verifyJWT } from '../utils'
+import type { Env } from '../types'
 
 export const tasks = new Hono<{ Bindings: Env }>()
 
@@ -72,6 +73,8 @@ tasks.post('/', async c => {
     Date.now()
   )
 
+  // Fire automations for task created
+  await fireAutomations(c.env, parsed.data.projectId, 'task.created', { id, key: taskKey, title: parsed.data.title })
   return c.json({ task: { id, key: taskKey, ...parsed.data } }, 201)
 })
 
@@ -84,5 +87,59 @@ tasks.post('/move', async c => {
   const parsed = moveSchema.safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.format() }, 400)
   await run(c.env, 'UPDATE tasks SET status = ?, rank = ? WHERE id = ?', parsed.data.status, parsed.data.rank, parsed.data.id)
+  // Fire automations for status change
+  await fireAutomationsByTaskId(c.env, parsed.data.id, 'task.status_changed', { status: parsed.data.status })
   return c.json({ ok: true })
 })
+
+async function fireAutomations(env: Env, projectId: string, trigger: string, payload: any) {
+  const proj = await one<{ team_id: string }>(env, 'SELECT team_id FROM projects WHERE id = ? LIMIT 1', projectId)
+  if (!proj) return
+  const rules = await all<{ id: string; action: string; config: string }>(env, 'SELECT id, action, config FROM automations WHERE team_id = ? AND trigger = ? AND active = 1', proj.team_id, trigger)
+  for (const r of rules) {
+    const cfg = JSON.parse(r.config || '{}')
+    if (r.action === 'webhook.call') await callWebhook(env, proj.team_id, trigger, payload, cfg)
+    if (r.action === 'notify.user') await enqueueNotification(env, proj.team_id, payload, cfg)
+  }
+}
+
+async function fireAutomationsByTaskId(env: Env, taskId: string, trigger: string, payload: any) {
+  const proj = await one<{ team_id: string }>(env, 'SELECT p.team_id FROM tasks t JOIN projects p ON t.project_id = p.id WHERE t.id = ? LIMIT 1', taskId)
+  if (!proj) return
+  const rules = await all<{ id: string; action: string; config: string }>(env, 'SELECT id, action, config FROM automations WHERE team_id = ? AND trigger = ? AND active = 1', proj.team_id, trigger)
+  for (const r of rules) {
+    const cfg = JSON.parse(r.config || '{}')
+    if (r.action === 'webhook.call') await callWebhook(env, proj.team_id, trigger, payload, cfg)
+    if (r.action === 'notify.user') await enqueueNotification(env, proj.team_id, payload, cfg)
+  }
+}
+
+async function callWebhook(env: Env, teamId: string, event: string, payload: any, cfg: any) {
+  const hooks = await all<{ url: string; secret: string }>(env, 'SELECT url, secret FROM webhooks WHERE team_id = ? AND active = 1', teamId)
+  for (const h of hooks) {
+    const body = JSON.stringify({ event, payload, ts: Date.now() })
+    let sig = ''
+    if (h.secret && h.secret !== '-') {
+      const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(h.secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
+      sig = Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, '0')).join('')
+    }
+    try {
+      const res = await fetch(h.url, { method: 'POST', headers: { 'content-type': 'application/json', ...(sig ? { 'x-taskflow-signature': sig } : {}) }, body })
+      if (!res.ok) throw new Error(`Webhook ${h.url} status ${res.status}`)
+    } catch (e) {
+      // Simple retry once
+      try { await fetch(h.url, { method: 'POST', headers: { 'content-type': 'application/json', ...(sig ? { 'x-taskflow-signature': sig } : {}) }, body }) } catch {}
+    }
+  }
+}
+
+async function enqueueNotification(env: Env, teamId: string, payload: any, cfg: any) {
+  const users = await all<{ user_id: string }>(env, 'SELECT user_id FROM team_members WHERE team_id = ?', teamId)
+  for (const u of users) {
+    await run(env, 'INSERT INTO notifications (id, user_id, type, payload, created_at) VALUES (?, ?, ?, ?, ?)', crypto.randomUUID(), u.user_id, cfg?.type || 'automation', JSON.stringify(payload), Date.now())
+  }
+    const text = cfg?.text || `Task update: ${JSON.stringify(payload)}`
+    const { broadcastToHooks } = await import('./integrations')
+    await broadcastToHooks(env, teamId, text)
+}

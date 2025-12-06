@@ -14,6 +14,7 @@ import { ai } from './routes/ai'
 import { automation } from './routes/automation'
 import { reports } from './routes/reports'
 import { integrations } from './routes/integrations'
+import { processor } from './routes/processor'
 import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
@@ -46,5 +47,6 @@ app.route('/ai', ai)
 app.route('/automation', automation)
 app.route('/reports', reports)
 app.route('/integrations', integrations)
+app.route('/internal', processor)
 
 export default app

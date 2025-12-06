@@ -35,6 +35,12 @@ export const accessMiddleware = new Hono<{ Bindings: Env }>()
       const JWKS = createRemoteJWKSet(new URL(jwksUrl))
       const { payload } = await jwtVerify(cfJwt, JWKS)
       c.set('access', payload)
+      const email = (payload as any).email as string | undefined
+      if (email) {
+        const { upsertUserByEmail } = await import('./db')
+        const user = await upsertUserByEmail(c.env, email, (payload as any).name || 'Access User')
+        c.set('user', { sub: user.id, email, exp: Math.floor(Date.now()/1000)+3600 })
+      }
       return next()
     } catch (e) {
       return c.json({ error: 'Invalid Access token' }, 401)
