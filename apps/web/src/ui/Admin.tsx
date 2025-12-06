@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 
 const apiBase = ''
 
-export function Admin({ headers }: { headers: Record<string, string> }) {
+export function Admin({ headers, theme = 'light', lang = 'zh' }: { headers: Record<string, string>, theme?: 'light'|'dark', lang?: 'zh'|'en' }) {
   const [teamId, setTeamId] = useState('')
   const [members, setMembers] = useState<Array<{ user_id: string; role: string }>>([])
   const [settingsText, setSettingsText] = useState('{}')
@@ -39,11 +39,14 @@ export function Admin({ headers }: { headers: Record<string, string> }) {
     setTimeout(() => setArchivedMsg(''), 2000)
   }
 
-  const cardStyle: React.CSSProperties = { background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }
-  const labelStyle: React.CSSProperties = { fontSize: 12, color: '#6b7280' }
+  const colors = theme === 'dark'
+    ? { bg: '#0b1220', fg: '#e5e7eb', card: '#111827', border: '#1f2937', label: '#9ca3af' }
+    : { bg: '#f3f4f6', fg: '#111827', card: '#ffffff', border: '#e5e7eb', label: '#6b7280' }
+  const cardStyle: React.CSSProperties = { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 16, boxShadow: theme==='dark'?'none':'0 1px 2px rgba(0,0,0,0.04)' }
+  const labelStyle: React.CSSProperties = { fontSize: 12, color: colors.label }
   return (
-    <div style={{ padding: 16, background: '#f3f4f6' }}>
-      <h2 style={{ marginBottom: 16 }}>管理员界面</h2>
+    <div style={{ padding: 16, background: colors.bg, color: colors.fg }}>
+      <h2 style={{ marginBottom: 16 }}>{lang==='zh'?'管理员界面':'Admin'}</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
         <div>
           <div style={cardStyle}>

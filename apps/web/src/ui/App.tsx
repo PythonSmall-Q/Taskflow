@@ -402,7 +402,7 @@ export function App() {
           )}
         </section>
       </main>
-      {mode === 'admin' && <Admin headers={headers} />}
+      {mode === 'admin' && <Admin headers={headers} theme={theme} lang={lang} />}
     </div>
   )
 }
