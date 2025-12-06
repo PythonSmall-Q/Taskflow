@@ -1,12 +1,24 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { all, one } from '../db'
 
-export const apiKeys = new Hono<{ Bindings: Env }>()
+export const apiKeys = new Hono<AppContext>()
 
 apiKeys.get('/', async c => {
   const user = c.get('user') as { id: string }
-  const keys = await all(c.env, 'SELECT id, key, created_at, revoked FROM api_keys WHERE user_id = ?', user.id)
+  const rows = await all<{ id: string; key: string; created_at: number; revoked: number; limit_per_minute: number | null; scopes: string | null }>(
+    c.env,
+    'SELECT id, key, created_at, revoked, limit_per_minute, scopes FROM api_keys WHERE user_id = ? ORDER BY created_at DESC',
+    user.id
+  )
+  const keys = rows.map(r => ({
+    id: r.id,
+    key: r.key,
+    created_at: r.created_at,
+    revoked: r.revoked,
+    limit_per_minute: r.limit_per_minute ?? undefined,
+    scopes: r.scopes ? (() => { try { return JSON.parse(r.scopes) } catch { return [] } })() : []
+  }))
   return c.json({ keys })
 })
 

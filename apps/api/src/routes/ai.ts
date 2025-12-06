@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 
-export const ai = new Hono<{ Bindings: Env }>()
+export const ai = new Hono<AppContext>()
 
 ai.post('/auto-tag', async c => {
   const body = await c.req.json()

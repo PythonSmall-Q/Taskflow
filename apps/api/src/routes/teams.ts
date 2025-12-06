@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env, JWTPayload, Role } from '../types'
+import type { AppContext, JWTPayload, Role } from '../types'
 import { all, one, run } from '../db'
 import { getBearer, verifyJWT } from '../utils'
 import { requireScope } from '../middleware'
 
-export const teams = new Hono<{ Bindings: Env }>()
+export const teams = new Hono<AppContext>()
 
 const teamSchema = z.object({ name: z.string().min(1) })
 

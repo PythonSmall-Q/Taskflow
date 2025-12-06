@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { getBearer, verifyJWT } from '../utils'
 import { run, one, all } from '../db'
 import { requireScope } from '../middleware'
 import { broadcastToHooks } from './integrations'
 
-export const comments = new Hono<{ Bindings: Env }>()
+export const comments = new Hono<AppContext>()
 
 async function auth(c: any) {
   const token = getBearer(c.req.raw)

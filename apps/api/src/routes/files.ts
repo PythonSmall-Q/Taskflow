@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { getBearer, verifyJWT } from '../utils'
 import { requireScope } from '../middleware'
 
-export const files = new Hono<{ Bindings: Env }>()
+export const files = new Hono<AppContext>()
 
 async function auth(c: any) {
   const token = getBearer(c.req.raw)

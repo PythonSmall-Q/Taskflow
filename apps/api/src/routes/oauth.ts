@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { run, one, upsertUserByEmail } from '../db'
 import { signJWT } from '../utils'
 
 // Minimal direct OAuth scaffold (authorization code) for Google/GitHub
 // Note: For full production, prefer Cloudflare Access or handle PKCE securely.
 
-export const oauth = new Hono<{ Bindings: Env }>()
+export const oauth = new Hono<AppContext>()
 
 function redirectUri(provider: 'google'|'github') {
   return `https://your-domain.example/oauth/${provider}/callback`

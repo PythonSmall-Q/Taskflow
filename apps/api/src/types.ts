@@ -26,3 +26,12 @@ declare global {
     broadcast(data: any): void
   }
 }
+
+// Shared Hono context generics for the API
+export type AppContext = {
+  Bindings: Env
+  Variables: {
+    user?: JWTPayload | { id: string; scopes?: string[] }
+    access?: unknown
+  }
+}

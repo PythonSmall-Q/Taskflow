@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { all, one, run } from '../db'
 import { requireScope } from '../middleware'
 import { getBearer, verifyJWT } from '../utils'
 
-export const projects = new Hono<{ Bindings: Env }>()
+export const projects = new Hono<AppContext>()
 
 const schema = z.object({ name: z.string().min(1), description: z.string().optional(), color: z.string().optional() })
 

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { poweredBy } from 'hono/powered-by'
-import type { Env } from './types'
+import type { AppContext } from './types'
 import { auth } from './routes/auth'
 import { teams } from './routes/teams'
 import { projects } from './routes/projects'
@@ -22,7 +22,7 @@ import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppContext>()
 
 app.use('*', logger())
 app.use('*', poweredBy())

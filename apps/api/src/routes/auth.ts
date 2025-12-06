@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import type { Env, JWTPayload } from '../types'
+import type { AppContext } from '../types'
 import { all, one, run } from '../db'
 import { hashPassword, signJWT, verifyPassword } from '../utils'
 
 const registerSchema = z.object({ email: z.string().email(), password: z.string().min(8), name: z.string().min(1) })
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) })
 
-export const auth = new Hono<{ Bindings: Env; Variables: { user?: JWTPayload } }>()
+export const auth = new Hono<AppContext>()
 
 auth.post('/register', async c => {
   const body = await c.req.json()
@@ -62,8 +62,8 @@ auth.get('/me', async c => {
   const token = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '')
   if (!token) return c.json({ error: 'Unauthorized' }, 401)
   try {
-    const payload = (await import('../utils')).then(m => m.verifyJWT(token!, c.env.JWT_SECRET))
-    const { sub } = await payload
+    const { verifyJWT } = await import('../utils')
+    const { sub } = await verifyJWT(token!, c.env.JWT_SECRET)
     const user = await one<{ id: string; email: string; name: string }>(c.env, 'SELECT id, email, name FROM users WHERE id = ?', sub)
     if (!user) return c.json({ error: 'Not found' }, 404)
     return c.json({ user })

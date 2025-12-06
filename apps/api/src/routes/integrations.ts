@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 
-export const integrations = new Hono<{ Bindings: Env }>()
+export const integrations = new Hono<AppContext>()
 
 // Slack/Discord webhook notify stub
 integrations.post('/notify', async c => {

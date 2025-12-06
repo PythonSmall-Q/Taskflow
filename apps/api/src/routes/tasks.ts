@@ -4,9 +4,9 @@ import type { Env, TaskStatus } from '../types'
 import { all, one, run } from '../db'
 import { requireScope } from '../middleware'
 import { getBearer, verifyJWT } from '../utils'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 
-export const tasks = new Hono<{ Bindings: Env }>()
+export const tasks = new Hono<AppContext>()
 
 const upsert = z.object({
   projectId: z.string().uuid(),

@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { all } from '../db'
 
-export const reports = new Hono<{ Bindings: Env }>()
+export const reports = new Hono<AppContext>()
 
 reports.get('/burnup/:projectId', async c => {
   const projectId = c.req.param('projectId')

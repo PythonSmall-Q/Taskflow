@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 import { all, run } from '../db'
 import { callWebhook as callHook } from './tasks'
 
-export const processor = new Hono<{ Bindings: Env }>()
+export const processor = new Hono<AppContext>()
 
 // Process due tasks and fire automations
 processor.post('/process-due', async c => {

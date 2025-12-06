@@ -1,18 +1,27 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext, Env } from '../types'
 import { all, one, run } from '../db'
 
 // Roles: supervisor, manager, lead, staff
 function assertRole(user: { id: string }, role: string) {
-  return async (env: Env, teamId: string) => {
+  return async (env: any, teamId: string) => {
     const m = await one<{ role: string }>(env, 'SELECT role FROM team_members WHERE team_id = ? AND user_id = ? LIMIT 1', teamId, user.id)
     if (!m) return false
-    const order = ['staff','lead','manager','supervisor']
-    return order.indexOf(m.role) >= order.indexOf(role)
+    const weight: Record<string, number> = {
+      staff: 1, member: 1,
+      lead: 2,
+      manager: 3,
+      admin: 3,
+      supervisor: 4,
+      owner: 5,
+    }
+    const needed = weight[role] ?? 999
+    const have = weight[m.role] ?? 0
+    return have >= needed
   }
 }
 
-export const admin = new Hono<{ Bindings: Env }>()
+export const admin = new Hono<AppContext>()
 
 // List team members with roles
 admin.get('/teams/:teamId/members', async c => {

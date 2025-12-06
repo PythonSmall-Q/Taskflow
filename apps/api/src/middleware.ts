@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import type { Env, JWTPayload } from './types'
+import type { AppContext, JWTPayload } from './types'
 import { one } from './db'
 import { getBearer, verifyJWT } from './utils'
 import { jwtVerify, createRemoteJWKSet } from 'jose'
@@ -11,7 +11,7 @@ export const withCors = cors({
   allowHeaders: ['Content-Type', 'Authorization']
 })
 
-export const authMiddleware = new Hono<{ Bindings: Env }>()
+export const authMiddleware = new Hono<AppContext>()
   .use('*', async (c, next) => {
       const apiKey = c.req.header('x-api-key')
       if (apiKey) {
@@ -32,7 +32,7 @@ export const authMiddleware = new Hono<{ Bindings: Env }>()
   })
 
 // Validate Cloudflare Access JWT if present (cf-access-jwt-assertion)
-export const accessMiddleware = new Hono<{ Bindings: Env }>()
+export const accessMiddleware = new Hono<AppContext>()
   .use('*', async (c, next) => {
     const cfJwt = c.req.header('cf-access-jwt-assertion')
     if (!cfJwt) return next()

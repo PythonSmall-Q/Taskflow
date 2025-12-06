@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import type { Env } from '../types'
+import type { AppContext } from '../types'
 
-export const realtime = new Hono<{ Bindings: Env }>()
+export const realtime = new Hono<AppContext>()
 
 realtime.get('/room/:id', async c => {
   const id = c.req.param('id')
