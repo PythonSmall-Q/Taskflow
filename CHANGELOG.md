@@ -5,9 +5,10 @@ All notable changes to Taskflow Zero will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2024-12-21
+## [0.2.0] - 2025-12-21
 
 ### Added
+
 - 🎨 Enhanced UI with modern styling and animations
 - 🎯 Advanced task filtering (search, status, priority)
 - 📝 Rich task editor with Markdown preview
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🎯 Production-ready configurations
 
 ### Changed
+
 - ♻️ Refactored App component for better maintainability
 - 🎨 Improved component structure with separate files
 - 📝 Enhanced PATCH endpoint to support multiple fields
@@ -34,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🎨 Modernized CSS with CSS variables and transitions
 
 ### Fixed
+
 - 🐛 Fixed duplicate ReactMarkdown import
 - 🐛 Fixed undefined variables in App component
 - 🐛 Added missing Env type import
@@ -41,9 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ⚡ Fixed TypeScript compilation errors
 - 🔧 Added missing type definitions for dependencies
 
-## [0.1.0] - 2024-11-29
+## [0.1.0] - 2025-11-29
 
 ### Added
+
 - 🚀 Initial release
 - ✨ Core task management (CRUD operations)
 - 📊 Kanban board with drag-and-drop
@@ -64,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🎨 Basic UI with theme support
 
 ### Technical
+
 - ⚡ Cloudflare Workers
 - 🗄️ D1 SQLite database
 - 📦 R2 object storage
@@ -77,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
+
 - Mobile apps (React Native)
 - Gantt chart view
 - Time tracking
