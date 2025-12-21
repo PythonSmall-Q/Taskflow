@@ -22,6 +22,11 @@ import activity from './routes/activity'
 import templates from './routes/templates'
 import recurring from './routes/recurring'
 import users from './routes/users'
+import timeTracking from './routes/time-tracking'
+import notifications from './routes/notifications'
+import customFields from './routes/custom-fields'
+import gantt from './routes/gantt'
+import importExport from './routes/import-export'
 import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
@@ -62,5 +67,10 @@ app.route('/activity', activity)
 app.route('/templates', templates)
 app.route('/recurring', recurring)
 app.route('/users', users)
+app.route('/time-tracking', timeTracking)
+app.route('/notifications', notifications)
+app.route('/custom-fields', customFields)
+app.route('/gantt', gantt)
+app.route('/import-export', importExport)
 
 export default app

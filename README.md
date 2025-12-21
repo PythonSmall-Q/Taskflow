@@ -501,16 +501,35 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🗺️ Roadmap
 
-- [ ] Mobile apps (React Native)
-- [ ] Gantt chart view
-- [ ] Time tracking
-- [ ] Advanced AI features (priority prediction, deadline suggestion)
-- [ ] Email notifications
-- [ ] Calendar integration
-- [ ] Import/export (JSON, CSV, Jira)
-- [ ] Custom fields
-- [ ] Templates
-- [ ] Recurring tasks
+### ✅ Completed (v0.2.0)
+- [x] Mobile-friendly responsive design
+- [x] Time tracking with start/stop timers
+- [x] Email notifications system
+- [x] Custom fields for tasks
+- [x] Gantt chart view with critical path
+- [x] Advanced AI features (priority prediction, deadline suggestion, time estimation)
+- [x] Import/export (JSON, CSV, Jira)
+- [x] Task templates and recurring tasks
+- [x] Bulk operations
+
+### 🚧 In Progress (v0.3.0)
+- [ ] Mobile native apps (React Native)
+- [ ] Advanced calendar integration (Google, Outlook)
+- [ ] Third-party app integrations (Trello, Asana, Linear)
+- [ ] Video attachments support
+- [ ] Voice notes for tasks
+
+### 🔮 Future (v0.4.0+)
+- [ ] Team chat/messaging
+- [ ] Mind map view
+- [ ] Portfolio management (multi-project)
+- [ ] Resource planning
+- [ ] Budget tracking
+- [ ] Invoicing integration
+- [ ] Client portal
+- [ ] Advanced permissions (row-level security)
+- [ ] API webhooks v2 (retry, filtering)
+- [ ] Plugin system for custom extensions
 
 ## ⭐ Star History
 
