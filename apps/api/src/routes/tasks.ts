@@ -98,12 +98,231 @@ tasks.patch('/:id', requireScope('tasks:write'), async c => {
   const user = await auth(c)
   if (!user) return c.json({ error: 'Unauthorized' }, 401)
   const id = c.req.param('id')
-  const body = await c.req.json().catch(() => ({})) as { description?: string }
+  const body = await c.req.json().catch(() => ({})) as { 
+    description?: string
+    title?: string
+    priority?: 'low' | 'medium' | 'high' | 'urgent'
+    due_date?: number
+    labels?: string[]
+  }
+  
+  const updates: string[] = []
+  const values: any[] = []
+  
   if (typeof body.description === 'string') {
-    await run(c.env, 'UPDATE tasks SET description = ? WHERE id = ?', body.description, id)
-    await fireAutomationsByTaskId(c.env, id, 'task.updated', { description: true })
+    updates.push('description = ?')
+    values.push(body.description)
+  }
+  if (typeof body.title === 'string') {
+    updates.push('title = ?')
+    values.push(body.title)
+  }
+  if (body.priority) {
+    updates.push('priority = ?')
+    values.push(body.priority)
+  }
+  if (body.due_date !== undefined) {
+    updates.push('due_date = ?')
+    values.push(body.due_date)
+  }
+  if (Array.isArray(body.labels)) {
+    updates.push('labels = ?')
+    values.push(JSON.stringify(body.labels))
+  }
+  
+  if (updates.length > 0) {
+    values.push(id)
+    await run(c.env, `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, ...values)
+    await fireAutomationsByTaskId(c.env, id, 'task.updated', body)
   }
   return c.json({ ok: true })
+})
+
+// Delete task
+tasks.delete('/:id', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const id = c.req.param('id')
+  await run(c.env, 'DELETE FROM tasks WHERE id = ?', id)
+  return c.json({ ok: true })
+})
+
+// Bulk operations
+tasks.post('/bulk', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const body = await c.req.json()
+  const { operation, taskIds } = body as { operation: 'delete' | 'move' | 'update', taskIds: string[], status?: string, updates?: any }
+  
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    return c.json({ error: 'taskIds must be a non-empty array' }, 400)
+  }
+  
+  const placeholders = taskIds.map(() => '?').join(',')
+  
+  if (operation === 'delete') {
+    await run(c.env, `DELETE FROM tasks WHERE id IN (${placeholders})`, ...taskIds)
+    return c.json({ ok: true, deleted: taskIds.length })
+  }
+  
+  if (operation === 'move' && body.status) {
+    await run(c.env, `UPDATE tasks SET status = ? WHERE id IN (${placeholders})`, body.status, ...taskIds)
+    return c.json({ ok: true, updated: taskIds.length })
+  }
+  
+  if (operation === 'update' && body.updates) {
+    const updates: string[] = []
+    const values: any[] = []
+    if (body.updates.priority) { updates.push('priority = ?'); values.push(body.updates.priority) }
+    if (body.updates.due_date !== undefined) { updates.push('due_date = ?'); values.push(body.updates.due_date) }
+    if (updates.length > 0) {
+      await run(c.env, `UPDATE tasks SET ${updates.join(', ')} WHERE id IN (${placeholders})`, ...values, ...taskIds)
+      return c.json({ ok: true, updated: taskIds.length })
+    }
+  }
+  
+  return c.json({ error: 'Invalid operation' }, 400)
+})
+
+// Duplicate task
+tasks.post('/:id/duplicate', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const id = c.req.param('id')
+  
+  const task = await one<any>(c.env, 'SELECT * FROM tasks WHERE id = ? LIMIT 1', id)
+  if (!task) return c.json({ error: 'Task not found' }, 404)
+  
+  const newId = crypto.randomUUID()
+  const key = await c.env.CACHE.get('task-counter')
+  let num = key ? parseInt(key, 10) : 0
+  num += 1
+  await c.env.CACHE.put('task-counter', String(num))
+  const taskKey = `TASK-${num.toString().padStart(4, '0')}`
+  
+  await run(
+    c.env,
+    `INSERT INTO tasks (id, project_id, title, description, labels, priority, due_date, estimate_minutes, status, key, rank, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    newId,
+    task.project_id,
+    task.title + ' (Copy)',
+    task.description,
+    task.labels,
+    task.priority,
+    null, // Reset due date
+    task.estimate_minutes,
+    'todo', // Reset to todo
+    taskKey,
+    Date.now(),
+    Date.now()
+  )
+  
+  return c.json({ task: { id: newId, key: taskKey } }, 201)
+})
+
+// Create task from template
+tasks.post('/from-template/:templateId', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const templateId = c.req.param('templateId')
+  const body = await c.req.json()
+  const { projectId } = body
+  
+  if (!projectId) return c.json({ error: 'projectId required' }, 400)
+  
+  const template = await one<any>(c.env, 'SELECT * FROM task_templates WHERE id = ? LIMIT 1', templateId)
+  if (!template) return c.json({ error: 'Template not found' }, 404)
+  
+  const id = crypto.randomUUID()
+  const key = await c.env.CACHE.get('task-counter')
+  let num = key ? parseInt(key, 10) : 0
+  num += 1
+  await c.env.CACHE.put('task-counter', String(num))
+  const taskKey = `TASK-${num.toString().padStart(4, '0')}`
+  
+  const config = JSON.parse(template.config || '{}')
+  await run(
+    c.env,
+    `INSERT INTO tasks (id, project_id, title, description, labels, priority, due_date, estimate_minutes, status, key, rank, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    projectId,
+    config.title || 'New Task',
+    config.description || '',
+    JSON.stringify(config.labels || []),
+    config.priority || 'medium',
+    null,
+    config.estimate_minutes || null,
+    'todo',
+    taskKey,
+    Date.now(),
+    Date.now()
+  )
+  
+  return c.json({ task: { id, key: taskKey } }, 201)
+})
+
+// Export tasks
+tasks.get('/:projectId/export', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const projectId = c.req.param('projectId')
+  const format = c.req.query('format') || 'json'
+  
+  const rows = await all(
+    c.env,
+    `SELECT t.* FROM tasks t
+     JOIN projects p ON t.project_id = p.id
+     JOIN team_members m ON m.team_id = p.team_id
+     WHERE p.id = ? AND m.user_id = ?
+     ORDER BY t.created_at DESC`,
+    projectId,
+    user.sub
+  )
+  
+  if (format === 'csv') {
+    const headers = ['Key', 'Title', 'Status', 'Priority', 'Due Date', 'Created At']
+    const csvRows = rows.map((t: any) => [
+      t.key,
+      `"${(t.title || '').replace(/"/g, '""')}"`,
+      t.status,
+      t.priority || '',
+      t.due_date ? new Date(t.due_date).toISOString() : '',
+      new Date(t.created_at).toISOString()
+    ])
+    const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+    return new Response(csv, { headers: { 'content-type': 'text/csv', 'content-disposition': `attachment; filename="tasks-${projectId}.csv"` } })
+  }
+  
+  return c.json({ tasks: rows, exported_at: new Date().toISOString() })
+})
+
+// Search tasks with advanced filters
+tasks.post('/search', requireScope('tasks:write'), async c => {
+  const user = await auth(c)
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const body = await c.req.json()
+  const { query, projectId, status, priority, labels, assigneeId, dueBefore, dueAfter } = body
+  
+  let sql = `SELECT t.* FROM tasks t
+             JOIN projects p ON t.project_id = p.id
+             JOIN team_members m ON m.team_id = p.team_id
+             WHERE m.user_id = ?`
+  const params: any[] = [user.sub]
+  
+  if (projectId) { sql += ' AND t.project_id = ?'; params.push(projectId) }
+  if (status) { sql += ' AND t.status = ?'; params.push(status) }
+  if (priority) { sql += ' AND t.priority = ?'; params.push(priority) }
+  if (assigneeId) { sql += ' AND t.assignee_id = ?'; params.push(assigneeId) }
+  if (dueBefore) { sql += ' AND t.due_date < ?'; params.push(dueBefore) }
+  if (dueAfter) { sql += ' AND t.due_date > ?'; params.push(dueAfter) }
+  if (query) { sql += ' AND (t.title LIKE ? OR t.description LIKE ?)'; params.push(`%${query}%`, `%${query}%`) }
+  
+  sql += ' ORDER BY t.created_at DESC LIMIT 100'
+  
+  const rows = await all(c.env, sql, ...params)
+  return c.json({ tasks: rows, count: rows.length })
 })
 
 async function fireAutomations(env: Env, projectId: string, trigger: string, payload: any) {

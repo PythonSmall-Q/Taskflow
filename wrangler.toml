@@ -25,6 +25,10 @@ binding = "AI"
 
 env = { JWT_SECRET = "dev-secret-change" }
 
+# Scheduled trigger for recurring tasks
+[triggers]
+crons = ["0 * * * *"]  # Run every hour
+
 [durable_objects]
 bindings = [
   { name = "ROOM_DO", class_name = "RoomDurableObject" }

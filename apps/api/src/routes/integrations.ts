@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { AppContext } from '../types'
+import type { AppContext, Env } from '../types'
 
 export const integrations = new Hono<AppContext>()
 

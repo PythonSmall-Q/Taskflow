@@ -18,6 +18,10 @@ import { processor } from './routes/processor'
 import { comments } from './routes/comments'
 import { apiKeys } from './routes/api-keys'
 import { admin } from './routes/admin'
+import activity from './routes/activity'
+import templates from './routes/templates'
+import recurring from './routes/recurring'
+import users from './routes/users'
 import openapiSpec from '../openapi.yaml' assert { type: 'yaml' }
 import { rateLimit } from './middleware'
 export { RoomDurableObject } from './durable-objects/room'
@@ -54,5 +58,9 @@ app.route('/internal', processor)
 app.route('/comments', comments)
 app.route('/api-keys', apiKeys)
 app.route('/admin', admin)
+app.route('/activity', activity)
+app.route('/templates', templates)
+app.route('/recurring', recurring)
+app.route('/users', users)
 
 export default app

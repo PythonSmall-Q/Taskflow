@@ -10,10 +10,17 @@
   "scripts": {
     "build": "npm --workspaces run build",
     "dev": "wrangler dev --config wrangler.toml",
+    "dev:web": "npm --workspace @taskflow/web run dev",
     "format": "prettier -w .",
     "test": "vitest --run",
+    "test:watch": "vitest",
     "typecheck": "tsc -b",
-    "migrate": "wrangler d1 migrations apply taskflow-db --local --config wrangler.toml"
+    "migrate": "wrangler d1 migrations apply taskflow-db --local --config wrangler.toml",
+    "migrate:prod": "wrangler d1 migrations apply taskflow-db -e production --config wrangler.toml",
+    "deploy": "npm run build && wrangler deploy -e production",
+    "deploy:dry": "npm run build && wrangler deploy -e production --dry-run",
+    "logs": "wrangler tail -e production",
+    "setup": "npm install && npm run migrate && npm run build"
   },
   "devDependencies": {
     "prettier": "^3.2.5",
